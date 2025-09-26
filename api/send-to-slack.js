@@ -1,23 +1,31 @@
 export default async function handler(req, res) {
-  // Set CORS headers
+  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // Handle preflight
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Handle GET for health check
+  // Handle GET requests (for health checks)
   if (req.method === 'GET') {
-    return res.json({ status: 'Server is running', timestamp: Date.now() });
+    return res.json({ 
+      status: 'Figma Slack Bridge is running!',
+      endpoint: '/api/send-to-slack',
+      timestamp: new Date().toISOString()
+    });
   }
 
-  // Handle POST for Slack
+  // Handle POST requests
   if (req.method === 'POST') {
     try {
       const { webhookUrl, payload } = req.body;
+
+      if (!webhookUrl || !payload) {
+        return res.status(400).json({ error: 'Missing webhookUrl or payload' });
+      }
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -26,12 +34,14 @@ export default async function handler(req, res) {
       });
 
       if (response.ok) {
-        return res.json({ success: true });
+        return res.json({ success: true, message: 'Successfully sent to Slack' });
       } else {
-        return res.status(500).json({ error: 'Slack request failed' });
+        const errorText = await response.text();
+        return res.status(500).json({ error: 'Failed to send to Slack', details: errorText });
       }
+
     } catch (error) {
-      return res.status(500).json({ error: error.message });
+      return res.status(500).json({ error: 'Server error', details: error.message });
     }
   }
 
