@@ -1,0 +1,5 @@
+{
+  "name": "figma-slack-bridge",
+  "version": "1.0.0",
+  "description": "Serverless bridge for Figma to Slack"
+}
