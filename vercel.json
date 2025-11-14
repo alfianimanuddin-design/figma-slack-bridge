@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/send-to-slack.js": {
+      "maxDuration": 10
+    }
+  }
+}
