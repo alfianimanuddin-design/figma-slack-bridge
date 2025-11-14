@@ -45,9 +45,12 @@ export default async function handler(req, res) {
       const data = await response.json();
 
       if (!data.ok) {
-        return res.status(500).json({
+        console.error('Slack API error:', data);
+        return res.status(400).json({
+          success: false,
           error: 'Slack API error',
-          details: data.error
+          details: data.error || 'Unknown error',
+          slackResponse: data
         });
       }
 
@@ -114,7 +117,9 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    console.error('Server error:', error);
     return res.status(500).json({
+      success: false,
       error: 'Server error',
       details: error.message
     });
