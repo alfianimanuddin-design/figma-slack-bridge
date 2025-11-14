@@ -19,6 +19,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing Slack bot token' });
     }
 
+    // Helper function to delay between requests to avoid rate limiting
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
     // Fetch all users from Slack API with pagination support
     let allMembers = [];
     let cursor = '';
@@ -26,6 +29,11 @@ export default async function handler(req, res) {
 
     do {
       pageCount++;
+
+      // Add delay between requests to avoid rate limiting (except for first request)
+      if (pageCount > 1) {
+        await delay(1000); // Wait 1 second between requests
+      }
 
       // Build URL with pagination parameters
       const url = cursor
