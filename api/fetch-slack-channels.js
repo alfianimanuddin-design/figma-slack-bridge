@@ -36,13 +36,15 @@ export default async function handler(req, res) {
       }
 
       // Build URL with pagination parameters
+      // Use users.conversations to get only channels where the bot is a member
+      // This avoids fetching 700+ channels and hitting rate limits
       // types: public_channel,private_channel to get both public and private channels
       // exclude_archived: true to only get active channels
       const url = cursor
-        ? `https://slack.com/api/conversations.list?types=public_channel,private_channel&exclude_archived=true&limit=200&cursor=${encodeURIComponent(cursor)}`
-        : 'https://slack.com/api/conversations.list?types=public_channel,private_channel&exclude_archived=true&limit=200';
+        ? `https://slack.com/api/users.conversations?types=public_channel,private_channel&exclude_archived=true&limit=200&cursor=${encodeURIComponent(cursor)}`
+        : 'https://slack.com/api/users.conversations?types=public_channel,private_channel&exclude_archived=true&limit=200';
 
-      console.log(`Fetching channels page ${pageCount}...`);
+      console.log(`Fetching channels page ${pageCount} (bot member channels only)...`);
 
       const response = await fetch(url, {
         method: 'GET',
