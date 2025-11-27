@@ -73,8 +73,20 @@ export default async function handler(req, res) {
       console.error('ClickUp user fetch error:', userData);
     }
 
-    // For GET requests (OAuth redirect), return an HTML page that posts message to opener
+    // For GET requests (OAuth redirect), return an HTML page
     if (req.method === 'GET') {
+      const state = req.query.state;
+
+      // Store token on server for plugin to retrieve
+      const storeResponse = await fetch(`${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/clickup-token-exchange?state=${state}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          access_token: tokenData.access_token,
+          user: userData.user || null
+        })
+      }).catch(err => console.error('Error storing token:', err));
+
       const html = `
         <!DOCTYPE html>
         <html>
@@ -113,15 +125,20 @@ export default async function handler(req, res) {
             <p>You can close this window and return to Figma.</p>
           </div>
           <script>
-            // Send token data to the opener window (Figma plugin)
+            // Try to send token data to the opener window (Figma plugin)
             if (window.opener) {
-              window.opener.postMessage({
-                type: 'clickup-auth-success',
-                data: ${JSON.stringify({
-                  access_token: tokenData.access_token,
-                  user: userData.user || null
-                })}
-              }, '*');
+              try {
+                window.opener.postMessage({
+                  type: 'clickup-auth-success',
+                  data: ${JSON.stringify({
+                    access_token: tokenData.access_token,
+                    user: userData.user || null,
+                    state: state
+                  })}
+                }, '*');
+              } catch (e) {
+                console.log('Could not post message to opener:', e);
+              }
             }
             // Auto-close after 2 seconds
             setTimeout(() => window.close(), 2000);
