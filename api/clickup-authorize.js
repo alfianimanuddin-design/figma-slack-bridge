@@ -30,6 +30,7 @@ export default async function handler(req, res) {
     const authUrl = new URL('https://app.clickup.com/api');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('state', state);
 
     return res.json({
