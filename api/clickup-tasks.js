@@ -42,11 +42,18 @@ export default async function handler(req, res) {
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('ClickUp tasks fetch error:', data);
+        console.error('ClickUp tasks fetch error:', {
+          status: response.status,
+          statusText: response.statusText,
+          listId,
+          data
+        });
         return res.status(400).json({
           success: false,
           error: 'Failed to fetch tasks',
-          details: data.err || data.error || 'Unknown error'
+          details: data.err || data.ECODE || data.error || JSON.stringify(data) || 'Unknown error',
+          statusCode: response.status,
+          fullError: data
         });
       }
 
