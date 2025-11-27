@@ -55,12 +55,17 @@ export default async function handler(req, res) {
     const existingCustomFields = taskData.custom_fields || [];
     const customFieldUpdates = [];
 
+    console.log('Existing custom fields:', existingCustomFields.map(f => ({ name: f.name, type: f.type, id: f.id })));
+    console.log('Fields to update:', customFields);
+
     for (const field of customFields) {
       const existingField = existingCustomFields.find(
         f => f.name.toLowerCase() === field.name.toLowerCase()
       );
 
       if (existingField) {
+        console.log(`Processing field "${field.name}" (type: ${existingField.type})`);
+
         // Prepare update based on field type
         let updateValue;
 
@@ -68,33 +73,58 @@ export default async function handler(req, res) {
           // For date fields, convert to timestamp (milliseconds)
           const date = new Date(field.value);
           updateValue = { value: date.getTime() };
+          console.log(`Date field: ${field.value} -> ${date.getTime()}`);
+        } else if (existingField.type === 'drop_down') {
+          // For dropdown fields, find the option with the matching name
+          const options = existingField.type_config?.options || [];
+          console.log(`Dropdown options:`, options.map(o => o.name));
+          const matchingOption = options.find(
+            opt => opt.name.toLowerCase() === field.value.toLowerCase()
+          );
+
+          if (matchingOption) {
+            // Use the option's orderindex or id
+            updateValue = { value: matchingOption.orderindex };
+            console.log(`Dropdown match found: "${field.value}" -> orderindex ${matchingOption.orderindex}`);
+          } else {
+            console.warn(`Option "${field.value}" not found in dropdown "${field.name}"`);
+            continue; // Skip this field if option not found
+          }
         } else if (existingField.type === 'url') {
           // For URL fields
           updateValue = { value: field.value };
+          console.log(`URL field: ${field.value}`);
         } else if (existingField.type === 'short_text' || existingField.type === 'text') {
           // For text fields
           updateValue = { value: field.value };
+          console.log(`Text field: ${field.value}`);
         } else {
           // Default: try to set the value directly
           updateValue = { value: field.value };
+          console.log(`Unknown field type "${existingField.type}": ${field.value}`);
         }
 
-        customFieldUpdates.push({
+        const fieldUpdate = {
           id: existingField.id,
           ...updateValue
-        });
+        };
+        customFieldUpdates.push(fieldUpdate);
+        console.log(`Added to updates:`, fieldUpdate);
       } else {
         console.warn(`Custom field "${field.name}" not found in task`);
       }
     }
 
     if (customFieldUpdates.length === 0) {
+      console.log('No custom field updates to apply');
       return res.json({
         success: true,
         message: 'No matching custom fields found to update',
         task: taskData
       });
     }
+
+    console.log('Sending to ClickUp API:', JSON.stringify({ custom_fields: customFieldUpdates }, null, 2));
 
     // Update the custom fields
     const updateResponse = await fetch(
@@ -118,14 +148,17 @@ export default async function handler(req, res) {
       return res.status(400).json({
         success: false,
         error: 'Failed to update custom fields',
-        details: updateData.err || updateData.error || 'Unknown error'
+        details: updateData.err || updateData.error || 'Unknown error',
+        sentData: customFieldUpdates
       });
     }
 
+    console.log('Successfully updated custom fields');
     return res.json({
       success: true,
       task: updateData,
-      updatedFields: customFieldUpdates.length
+      updatedFields: customFieldUpdates.length,
+      updates: customFieldUpdates
     });
 
   } catch (error) {
