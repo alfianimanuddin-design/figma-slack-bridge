@@ -124,41 +124,69 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('Sending to ClickUp API:', JSON.stringify({ custom_fields: customFieldUpdates }, null, 2));
+    console.log('Sending to ClickUp API:', JSON.stringify(customFieldUpdates, null, 2));
 
-    // Update the custom fields
-    const updateResponse = await fetch(
-      `https://api.clickup.com/api/v2/task/${taskId}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Authorization': accessToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          custom_fields: customFieldUpdates
-        })
+    // Update custom fields one by one using dedicated endpoint
+    const results = [];
+    const errors = [];
+
+    for (const fieldUpdate of customFieldUpdates) {
+      try {
+        console.log(`Updating field ${fieldUpdate.id} with value:`, fieldUpdate.value);
+
+        const updateResponse = await fetch(
+          `https://api.clickup.com/api/v2/task/${taskId}/field/${fieldUpdate.id}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': accessToken,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              value: fieldUpdate.value
+            })
+          }
+        );
+
+        const updateData = await updateResponse.json();
+
+        if (!updateResponse.ok) {
+          console.error(`Failed to update field ${fieldUpdate.id}:`, updateData);
+          errors.push({
+            fieldId: fieldUpdate.id,
+            error: updateData.err || updateData.error || 'Unknown error'
+          });
+        } else {
+          console.log(`Successfully updated field ${fieldUpdate.id}`);
+          results.push({
+            fieldId: fieldUpdate.id,
+            success: true
+          });
+        }
+      } catch (error) {
+        console.error(`Error updating field ${fieldUpdate.id}:`, error);
+        errors.push({
+          fieldId: fieldUpdate.id,
+          error: error.message
+        });
       }
-    );
+    }
 
-    const updateData = await updateResponse.json();
-
-    if (!updateResponse.ok) {
-      console.error('ClickUp custom fields update error:', updateData);
+    if (errors.length > 0) {
+      console.error('Some fields failed to update:', errors);
       return res.status(400).json({
         success: false,
-        error: 'Failed to update custom fields',
-        details: updateData.err || updateData.error || 'Unknown error',
-        sentData: customFieldUpdates
+        error: 'Failed to update some custom fields',
+        results: results,
+        errors: errors
       });
     }
 
-    console.log('Successfully updated custom fields');
+    console.log('Successfully updated all custom fields');
     return res.json({
       success: true,
-      task: updateData,
-      updatedFields: customFieldUpdates.length,
-      updates: customFieldUpdates
+      updatedFields: results.length,
+      results: results
     });
 
   } catch (error) {
