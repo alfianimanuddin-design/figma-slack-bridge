@@ -2,6 +2,12 @@
   "functions": {
     "api/send-to-slack.js": {
       "maxDuration": 10
+    },
+    "api/clickup-tasks.js": {
+      "maxDuration": 30
+    },
+    "api/clickup-workspaces.js": {
+      "maxDuration": 30
     }
   }
 }
