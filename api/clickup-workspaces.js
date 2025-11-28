@@ -56,12 +56,45 @@ export default async function handler(req, res) {
 
           const spacesData = await spacesResponse.json();
 
+          // Fetch folders for each space
+          const spacesWithFolders = await Promise.all(
+            (spacesData.spaces || []).map(async (space) => {
+              try {
+                const foldersResponse = await fetch(
+                  `https://api.clickup.com/api/v2/space/${space.id}/folder?archived=false`,
+                  {
+                    method: 'GET',
+                    headers: {
+                      'Authorization': accessToken,
+                      'Content-Type': 'application/json'
+                    }
+                  }
+                );
+
+                const foldersData = await foldersResponse.json();
+
+                return {
+                  id: space.id,
+                  name: space.name,
+                  folders: foldersData.folders || []
+                };
+              } catch (error) {
+                console.error(`Error fetching folders for space ${space.id}:`, error);
+                return {
+                  id: space.id,
+                  name: space.name,
+                  folders: []
+                };
+              }
+            })
+          );
+
           return {
             id: team.id,
             name: team.name,
             color: team.color || '#7B68EE',
             avatar: team.avatar || null,
-            spaces: spacesData.spaces || []
+            spaces: spacesWithFolders
           };
         } catch (error) {
           console.error(`Error fetching spaces for team ${team.id}:`, error);
